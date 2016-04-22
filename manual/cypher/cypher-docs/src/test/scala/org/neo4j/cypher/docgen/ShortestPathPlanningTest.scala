@@ -67,8 +67,8 @@ class ShortestPathPlanningTest extends DocumentingTest {
         |path even though that could not be guaranteed at planning time.""".stripMargin)
     section("Shortest path with fast algorithm") {
       query(
-        """MATCH (ms:Person {name:'Martin Sheen'} ),
-          |      (cs:Person {name:'Charlie Sheen'}),
+        """MATCH (ms:Person {name: 'Martin Sheen'} ),
+          |      (cs:Person {name: 'Charlie Sheen'}),
           |      p = shortestPath( (ms)-[rels:ACTED_IN*]-(cs) )
           |WHERE ALL(r in rels WHERE exists(r.role))
           |RETURN p""", assertShortestPathLength) {
@@ -84,8 +84,8 @@ class ShortestPathPlanningTest extends DocumentingTest {
           """Predicates used in the `WHERE` clause that apply to the shortest path pattern are evaluated before deciding
             |what the shortest matching path is. """)
         query(
-          """MATCH (cs:Person {name:'Charlie Sheen'}),
-            |      (ms:Person {name:'Martin Sheen'}),
+          """MATCH (cs:Person {name: 'Charlie Sheen'}),
+            |      (ms:Person {name: 'Martin Sheen'}),
             |      p = shortestPath( (cs)-[*]-(ms) )
             |WHERE length(p) > 1
             |RETURN p""", assertShortestPathLength) {
@@ -104,8 +104,8 @@ class ShortestPathPlanningTest extends DocumentingTest {
       }
       section("Prevent the exhaustive search from being used as a fallback") {
         query(
-          """MATCH (cs:Person {name:'Charlie Sheen'}),
-            |      (ms:Person {name:'Martin Sheen'}),
+          """MATCH (cs:Person {name: 'Charlie Sheen'}),
+            |      (ms:Person {name: 'Martin Sheen'}),
             |      p = shortestPath( (cs)-[*]-(ms) )
             |WITH p
             |WHERE length(p) > 1
