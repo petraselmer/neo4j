@@ -27,7 +27,7 @@ class ShortestPathPlanningTest extends DocumentingTest {
   override def doc = new DocBuilder {
     doc("Shortest path planning", "query-shortestpath-planning")
     initQueries(
-      """CREATE (charlie:Person {name:'Charlie Sheen'}),
+      """CREATE (charlie:Person {name: 'Charlie Sheen'}),
         |       (martin:Person {name: 'Martin Sheen'}),
         |       (michael:Person {name: 'Michael Douglas'}),
         |       (oliver:Person {name: 'Oliver Stone'}),
