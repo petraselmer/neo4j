@@ -51,6 +51,9 @@ public class AuthProcedures
     @Context
     public GraphDatabaseAPI graph;
 
+    @Context
+    public KernelTransaction tx;
+
     @Procedure( name = "dbms.createUser", mode = DBMS )
     public void createUser( @Name( "username" ) String username, @Name( "password" ) String password,
             @Name( "requirePasswordChange" ) boolean requirePasswordChange )
@@ -163,12 +166,8 @@ public class AuthProcedures
     public Stream<StringResult> listRolesForUser( @Name( "username" ) String username )
             throws IllegalCredentialsException, IOException
     {
-        EnterpriseAuthSubject subject = EnterpriseAuthSubject.castOrFail( authSubject );
-        if ( subject.isAdmin() || subject.doesUsernameMatch( username ) )
-        {
-            return subject.getUserManager().getRoleNamesForUser( username ).stream().map( StringResult::new );
-        }
-        throw new AuthorizationViolationException( PERMISSION_DENIED );
+        EnterpriseAuthSubject subject = ensureSelfOrAdminAuthSubject( username );
+        return subject.getUserManager().getRoleNamesForUser( username ).stream().map( StringResult::new );
     }
 
     @Procedure( name = "dbms.listUsersForRole", mode = DBMS )
@@ -193,22 +192,21 @@ public class AuthProcedures
     }
 
     @Procedure( name = "dbms.terminateTransactionsForUser", mode = DBMS )
-    public Stream<TransactionResult> terminateTransactionsForUser( @Name( "username" ) String username )
+    public Stream<TransactionTerminationResult> terminateTransactionsForUser( @Name( "username" ) String username )
             throws IllegalCredentialsException, IOException
     {
-        EnterpriseAuthSubject adminSubject = ensureAdminAuthSubject();
-        adminSubject.getUserManager().assertAndGetUser( username );
+        ensureSelfOrAdminAuthSubject( username );
 
         Long killCount = 0L;
         for ( KernelTransaction tx : getActiveTransactions() )
         {
-            if ( tx.mode().name().equals( username ) )
+            if ( tx.mode().name().equals( username ) && tx != this.tx )
             {
                 tx.markForTermination();
                 killCount += 1;
             }
         }
-        return Stream.of( new TransactionResult( username, killCount ) );
+        return Stream.of( new TransactionTerminationResult( username, killCount ) );
     }
 
     // ----------------- helpers ---------------------
@@ -235,6 +233,18 @@ public class AuthProcedures
             throw new AuthorizationViolationException( PERMISSION_DENIED );
         }
         return enterpriseAuthSubject;
+    }
+
+    private EnterpriseAuthSubject ensureSelfOrAdminAuthSubject( String username )
+    {
+        EnterpriseAuthSubject subject = EnterpriseAuthSubject.castOrFail( authSubject );
+        subject.getUserManager().assertAndGetUser( username );
+
+        if ( subject.isAdmin() || subject.doesUsernameMatch( username ) )
+        {
+            return subject;
+        }
+        throw new AuthorizationViolationException( PERMISSION_DENIED );
     }
 
     public static class StringResult
@@ -276,12 +286,24 @@ public class AuthProcedures
     public static class TransactionResult
     {
         public final String username;
-        public final Long transactionCount;
+        public final Long activeTransactions;
 
-        TransactionResult( String username, Long transactionCount )
+        TransactionResult( String username, Long activeTransactions )
         {
             this.username = username;
-            this.transactionCount = transactionCount;
+            this.activeTransactions = activeTransactions;
+        }
+    }
+
+    public static class TransactionTerminationResult
+    {
+        public final String username;
+        public final Long transactionsTerminated;
+
+        TransactionTerminationResult( String username, Long transactionsTerminated )
+        {
+            this.username = username;
+            this.transactionsTerminated = transactionsTerminated;
         }
     }
 }
